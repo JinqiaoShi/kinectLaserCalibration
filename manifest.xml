@@ -1,13 +1,13 @@
 <package>
-  <description brief="laserFlatter">
+  <description brief="kinectLaserCalibration">
 
-     laserFlatter
+     kinectLaserCalibration
 
   </description>
   <author>malcom</author>
   <license>BSD</license>
   <review status="unreviewed" notes=""/>
-  <url>http://ros.org/wiki/laserFlatter</url>
+  <url>http://ros.org/wiki/kinectLaserCalibration</url>
 
   <depend package="std_msgs"/>
   <depend package="sensor_msgs"/>
