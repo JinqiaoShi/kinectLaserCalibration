@@ -20,12 +20,12 @@ INCLUDE(${VTK_USE_FILE})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 SET(my_FORMS src/dialog.ui src/laser.ui)
 QT4_WRAP_UI(my_FORMS_HEADERS ${my_FORMS})
-SET(my_HEADERS src/laserWindow.h src/laser.h)
+SET(my_HEADERS src/laserWindow.h src/laser.h src/spinner.h)
 QT4_WRAP_CPP(my_HEADERS_MOC ${my_HEADERS})
 INCLUDE(${QT_USE_FILE})
 #ADD_DEFINITIONS(${QT_DEFINITIONS})
 
-rosbuild_add_executable(laserFlatter src/main.cpp src/laserWindow.cpp src/laser.cpp
+rosbuild_add_executable(laserFlatter src/main.cpp src/laserWindow.cpp src/laser.cpp src/spinner.cpp
     ${my_FORMS_HEADERS} ${my_HEADERS_MOC})
 
 TARGET_LINK_LIBRARIES(laserFlatter ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)

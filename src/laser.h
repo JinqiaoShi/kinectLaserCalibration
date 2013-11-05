@@ -1,18 +1,21 @@
 #ifndef LASER_H
 #define LASER_H
+#include "spinner.h"
 #include <boost/signal.hpp>
 #include <boost/bind.hpp>
 #include <QDialog>
 #include <QThread>
+#include "spinner.h"
 #include <QLabel>
 #include <QTime>
 #include <QImage>
 #include <unistd.h>
 #include <iostream>
-
-
+#include <QLineEdit>
+#include <stdio.h>
 
 class Worker;
+class Spinner;
 
 namespace Ui {
     class Laser;
@@ -27,14 +30,28 @@ public:
     explicit Laser(QWidget *parent = 0);
     ~Laser();
     Worker* _w;
-
+    Spinner* _s;
+    float d2;
+    float a2;
+    sensor_msgs::PointCloud* cloud_LASER;
+    sensor_msgs::PointCloud* cloud_KINECT;
 protected slots:
     void clickme();
     void setImage(QImage *i);
     void setImage(QImage i);
     void fastSet();
+private slots:
+
+    void on_lineEdit_returnPressed();
+
+    void on_lineEdit_2_returnPressed();
+
+    void on_pushButton_3_clicked();
+
 private:
     Ui::Laser *ui;
+
+
 
 };
 
