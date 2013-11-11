@@ -11,24 +11,23 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #SET(laser_SOURCES src/main.cpp src/laserWindow.cpp)
 #SET(laser_HEADERS src/laserWindow.h)
 #SET(laser_FORMS src/laserWindow.ui)
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules/")
 
 FIND_PACKAGE(Qt4 REQUIRED)
-SET(QT_USE_QTVTK TRUE)
-FIND_PACKAGE(VTK REQUIRED)
-INCLUDE(${VTK_USE_FILE})
+FIND_PACKAGE(QGLViewer)
+
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
-SET(my_FORMS src/dialog.ui src/laser.ui)
+SET(my_FORMS src/laser.ui)
 QT4_WRAP_UI(my_FORMS_HEADERS ${my_FORMS})
-SET(my_HEADERS src/laserWindow.h src/laser.h src/spinner.h)
+SET(my_HEADERS src/laser.h src/spinner.h src/fancyViewer.h src/safeContainer.h)
 QT4_WRAP_CPP(my_HEADERS_MOC ${my_HEADERS})
 INCLUDE(${QT_USE_FILE})
 #ADD_DEFINITIONS(${QT_DEFINITIONS})
 
-rosbuild_add_executable(laserFlatter src/main.cpp src/laserWindow.cpp src/laser.cpp src/spinner.cpp
-    ${my_FORMS_HEADERS} ${my_HEADERS_MOC})
+rosbuild_add_executable(laserFlatter src/main.cpp src/laser.cpp src/spinner.cpp src/fancyViewer.cpp src/safeContainer.cpp ${my_FORMS_HEADERS} ${my_HEADERS_MOC})
 
-TARGET_LINK_LIBRARIES(laserFlatter ${QT_LIBRARIES} ${VTK_LIBRARIES} QVTK)
+TARGET_LINK_LIBRARIES(laserFlatter ${QGLVIEWER_LIBRARY_RELEASE} ${QT_LIBRARIES} )
 rosbuild_link_boost(laserFlatter thread signals system)
 
 #uncomment if you have defined messages

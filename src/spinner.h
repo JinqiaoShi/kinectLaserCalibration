@@ -19,10 +19,23 @@
 #include "laser.h"
 #include "laserWindow.h"
 #include <ecl/threads/thread.hpp>
+#include <string>
 
 using namespace sensor_msgs;
 using namespace message_filters;
 class Laser;
+
+class pointAssoc
+{
+public:
+    pointAssoc(unsigned int a,unsigned int b){
+        i=a;
+        j=b;
+    }
+
+    unsigned int i;
+    unsigned int j;
+};
 
 class Spinner {
 public:
@@ -35,6 +48,7 @@ public:
     QImage* i;
     float d2;
     float a2;
+    std::vector<pointAssoc*> assoc;
 private:
     bool shutdown_required;
     ecl::Thread thread;
