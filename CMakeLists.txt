@@ -13,6 +13,8 @@ set(LIBRARY_OUTPUT_PATH ${PROJECT_SOURCE_DIR}/lib)
 #SET(laser_FORMS src/laserWindow.ui)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake_modules/")
 
+find_package(Eigen3 REQUIRED)
+include_directories(EIGEN3_INCLUDE_DIR)
 FIND_PACKAGE(Qt4 REQUIRED)
 FIND_PACKAGE(QGLViewer)
 

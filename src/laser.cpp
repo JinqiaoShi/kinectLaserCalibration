@@ -18,9 +18,17 @@ Laser::Laser(QWidget *parent) : QDialog(parent), ui(new Ui::Laser)
     //    thread->start();
 
     connect(ui->pushButton,SIGNAL(clicked()),SLOT(clickme()));
-    a2=1;
-    d2=1;
+    a2=0;
+    d2=0;
+    tx=0;
+    ty=0;
+    tz=0;
+    rz=0;
+    errorLabel=this->ui->errorLabel;
     f=this->ui->widget;
+    this->cloud_LASER=&f->cloud1;
+    this->cloud_KINECT=&f->cloud2;
+    this->p=&f->p;
 
 
 }
@@ -35,21 +43,6 @@ void Laser::clickme()
 {
     std::cout<<"click, nothing more, uncomment to see noise"<<std::endl;
     //QMetaObject::invokeMethod(_w, "doWork", Qt::QueuedConnection);
-}
-
-void Laser::setImage(QImage *i)
-{
-    ui->label->setPixmap(QPixmap::fromImage(*i));
-}
-
-//void Laser::fastSet() //thread test
-//{
-//    ui->label->setPixmap(QPixmap::fromImage(*(this->_w->i)));
-//}
-
-void Laser::setImage(QImage i)
-{
-    ui->label->setPixmap(QPixmap::fromImage(i));
 }
 
 
@@ -78,44 +71,104 @@ void Laser::on_pushButton_3_clicked()
     }
     myfile.close();
 
+    myfile.open ("assoc.m");
+    for(unsigned int i=0;i<this->p->size();i++)
+    {
+        pointAssoc* pa=this->p->at(i);
+        myfile <<pa->i<<" "<<pa->j<<endl;
+    }
+    myfile.close();
+
 }
 //============================================================================================================
 
 
+
+//TRANSFORM
+//============================================================================================================
+//RZ
+void Laser::on_dial_valueChanged(int value)
+{
+    rz=((float)(this->ui->dial->value()-3140)/1000);
+    this->ui->angleLabel->setText(QString::number(rz));
+    this->_s->updateData();
+
+}
+//X
+void Laser::on_doubleSpinBox_valueChanged(const QString &arg1)
+{
+    tx=arg1.toFloat();
+    this->_s->updateData();
+}
+//Y
+void Laser::on_doubleSpinBox_2_valueChanged(const QString &arg1)
+{
+    ty=arg1.toFloat();
+    this->_s->updateData();
+}
+//Z
+void Laser::on_doubleSpinBox_3_valueChanged(const QString &arg1)
+{
+    tz=arg1.toFloat();
+    this->_s->updateData();
+}
+//============================================================================================================
 
 //CALIBRATION
 //============================================================================================================
-void Laser::on_lineEdit_returnPressed()
+
+void Laser::on_doubleSpinBox_5_valueChanged(const QString &arg1)
 {
-    d2=ui->lineEdit->text().toFloat();
+    a2=arg1.toFloat();
+    this->_s->updateData();
 }
 
-void Laser::on_lineEdit_2_returnPressed()
+void Laser::on_doubleSpinBox_4_valueChanged(const QString &arg1)
 {
-    a2=ui->lineEdit_2->text().toFloat();
-}
-
-void Laser::on_plus_d_clicked()
-{
-    d2+=0.1f;
-    ui->lineEdit->setText(QString::number(d2));
-}
-
-void Laser::on_minus_d_clicked()
-{
-    d2-=0.1f;
-    ui->lineEdit->setText(QString::number(d2));
-}
-
-void Laser::on_minus_a_clicked()
-{
-    a2-=0.1f;
-    ui->lineEdit_2->setText(QString::number(a2));
-}
-
-void Laser::on_plus_a_clicked()
-{
-    a2+=0.1f;
-    ui->lineEdit_2->setText(QString::number(a2));
+    d2=arg1.toFloat();
+    this->_s->updateData();
 }
 //============================================================================================================
+
+
+//Optimize
+//============================================================================================================
+void Laser::on_pushButton_4_clicked()
+{
+    this->_s->optimization(this->ui->iterationNum->value(),this->_s->globalAssoc);
+}
+//============================================================================================================
+
+void Laser::setJacobianParameters(double x,double y, double rz)
+{
+
+    this->ui->doubleSpinBox->setValue(x);
+    this->ui->doubleSpinBox_2->setValue(y);
+    this->ui->angleLabel->setText(QString::number(rz));
+    this->ui->dial->setValue(int(rz*1000)+3140);
+
+}
+//Data accumulation
+void Laser::on_pushButton_2_clicked()
+{
+    this->_s->putAssInTheBag();
+    char c[100];
+    sprintf(c,"Accumulate (%d)",this->_s->globalAssoc.size());
+    this->ui->pushButton_2->setText(QString(c));
+}
+
+void Laser::on_pushButton_clicked()
+{
+    this->_s->globalAssoc.clear();
+    this->_s->tx=0;
+    this->_s->ty=0;
+    this->_s->tz=0;
+    this->tx=0;
+    this->ty=0;
+    this->rz=0;
+    this->setJacobianParameters(tx,ty,rz);
+    char c[100];
+    sprintf(c,"Accumulate (%d)",this->_s->globalAssoc.size());
+    this->ui->pushButton_2->setText(QString(c));
+    this->ui->iterationNum->setValue(1);
+}
