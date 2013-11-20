@@ -22,12 +22,20 @@ FIND_PACKAGE(QGLViewer)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 SET(my_FORMS src/laser.ui)
 QT4_WRAP_UI(my_FORMS_HEADERS ${my_FORMS})
-SET(my_HEADERS src/laser.h src/spinner.h src/fancyViewer.h src/safeContainer.h)
+SET(my_HEADERS src/laser.h src/spinner.h src/fancyViewer.h src/geohelper.h src/solver.h src/leastSquaresSolver.h src/fancyMap.h)
 QT4_WRAP_CPP(my_HEADERS_MOC ${my_HEADERS})
 INCLUDE(${QT_USE_FILE})
 #ADD_DEFINITIONS(${QT_DEFINITIONS})
 
-rosbuild_add_executable(laserFlatter src/main.cpp src/laser.cpp src/spinner.cpp src/fancyViewer.cpp src/safeContainer.cpp ${my_FORMS_HEADERS} ${my_HEADERS_MOC})
+rosbuild_add_executable(laserFlatter    src/main.cpp
+                                        src/laser.cpp
+                                        src/spinner.cpp
+                                        src/fancyViewer.cpp
+                                        src/geohelper.cpp
+                                        src/solver.cpp
+                                        src/leastSquaresSolver.cpp
+                                        src/fancyMap.cpp
+${my_FORMS_HEADERS} ${my_HEADERS_MOC})
 
 TARGET_LINK_LIBRARIES(laserFlatter ${QGLVIEWER_LIBRARY_RELEASE} ${QT_LIBRARIES} )
 rosbuild_link_boost(laserFlatter thread signals system)

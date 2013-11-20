@@ -28,8 +28,7 @@ Laser::Laser(QWidget *parent) : QDialog(parent), ui(new Ui::Laser)
     f=this->ui->widget;
     this->cloud_LASER=&f->cloud1;
     this->cloud_KINECT=&f->cloud2;
-    this->p=&f->p;
-
+    //this->mapPointer=f->mapPointer;
 
 }
 
@@ -51,33 +50,33 @@ void Laser::clickme()
 //============================================================================================================
 void Laser::on_pushButton_3_clicked()
 {
-    printf("Start dumping to csv\n");
-    //LASER FILE
-    ofstream myfile;
-    myfile.open ("laser.m");
-    geometry_msgs::Point32 p;
-    for(unsigned int i=0;i<cloud_LASER->points.size();i++)
-    {
-        p=cloud_LASER->points.at(i);
-        myfile <<p.x<<" "<<p.y<<endl;
-    }
-    myfile.close();
+//    printf("Start dumping to csv\n");
+//    //LASER FILE
+//    ofstream myfile;
+//    myfile.open ("laser.m");
+//    geometry_msgs::Point32 p;
+//    for(unsigned int i=0;i<cloud_LASER->points.size();i++)
+//    {
+//        p=cloud_LASER->points.at(i);
+//        myfile <<p.x<<" "<<p.y<<endl;
+//    }
+//    myfile.close();
 
-    myfile.open ("kinect.m");
-    for(unsigned int i=0;i<cloud_KINECT->points.size();i++)
-    {
-        p=cloud_KINECT->points.at(i);
-        myfile <<p.x<<" "<<p.y<<endl;
-    }
-    myfile.close();
+//    myfile.open ("kinect.m");
+//    for(unsigned int i=0;i<cloud_KINECT->points.size();i++)
+//    {
+//        p=cloud_KINECT->points.at(i);
+//        myfile <<p.x<<" "<<p.y<<endl;
+//    }
+//    myfile.close();
 
-    myfile.open ("assoc.m");
-    for(unsigned int i=0;i<this->p->size();i++)
-    {
-        pointAssoc* pa=this->p->at(i);
-        myfile <<pa->i<<" "<<pa->j<<endl;
-    }
-    myfile.close();
+//    myfile.open ("assoc.m");
+//    for(unsigned int i=0;i<this->p->size();i++)
+//    {
+//        pointAssoc* pa=this->p->at(i);
+//        myfile <<pa->i<<" "<<pa->j<<endl;
+//    }
+//    myfile.close();
 
 }
 //============================================================================================================
@@ -153,7 +152,7 @@ void Laser::on_pushButton_2_clicked()
 {
     this->_s->putAssInTheBag();
     char c[100];
-    sprintf(c,"Accumulate (%d)",this->_s->globalAssoc.size());
+    sprintf(c,"Accumulate (%ud)",(unsigned int)this->_s->globalAssoc.size());
     this->ui->pushButton_2->setText(QString(c));
 }
 
@@ -168,7 +167,7 @@ void Laser::on_pushButton_clicked()
     this->rz=0;
     this->setJacobianParameters(tx,ty,rz);
     char c[100];
-    sprintf(c,"Accumulate (%d)",this->_s->globalAssoc.size());
+    sprintf(c,"Accumulate (%ud)",(unsigned int)this->_s->globalAssoc.size());
     this->ui->pushButton_2->setText(QString(c));
     this->ui->iterationNum->setValue(1);
 }

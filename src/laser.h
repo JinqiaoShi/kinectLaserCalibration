@@ -14,7 +14,7 @@
 #include <QLineEdit>
 #include <stdio.h>
 #include "fancyViewer.h"
-
+#include "fancyMap.h"
 class Worker;
 class Spinner;
 class fancyViewer;
@@ -43,7 +43,7 @@ public:
     QLabel* errorLabel;
     sensor_msgs::PointCloud* cloud_LASER;
     sensor_msgs::PointCloud* cloud_KINECT;
-    std::vector<pointAssoc*>* p;
+    mymap mapPointer;
     fancyViewer* f;
     void setJacobianParameters(double x,double y, double rz);
 protected slots:

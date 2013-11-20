@@ -22,32 +22,53 @@
 #include <string>
 #include <Eigen/Core>
 #include <Eigen/Cholesky>
+#include "geohelper.h"
+#include "leastSquaresSolver.h"
+#include "fancyMap.h"
 
 using namespace sensor_msgs;
 using namespace message_filters;
 using namespace Eigen;
+using namespace std;
 class Laser;
 
-class pointAssoc
-{
-public:
-    pointAssoc(unsigned int a,unsigned int b,float c){
-        i=a;
-        j=b;
-        d=c;
-    }
+typedef std::pair<geometry_msgs::Point32,geometry_msgs::Point32 > pointpair;
+typedef std::vector<pointpair > pointpairVec;
 
-    unsigned int i;
-    unsigned int j;
-    float d;
-};
+//class pointAssoc
+//{
+//public:
+//    pointAssoc(unsigned int a,unsigned int b,float c){
+//        i=a;
+//        j=b;
+//        d=c;
+//    }
+
+//    unsigned int i;
+//    unsigned int j;
+//    float d;
+
+//    bool operator==(const pointAssoc& b) const {
+//        std::cout<<"egual done"<<std::endl;
+//        return (this->i==b.i && this->j==b.j);
+//    }
+
+//    bool operator<(const pointAssoc& b) const {
+//        std::cout<<"check done"<<std::endl;
+//        return this->d<b.d;
+//    }
+
+//};
+
 
 class myLaserStructure
 {
-    public:
-        std::vector<float> angles;
-        std::vector<float> ranges;
+public:
+    std::vector<float> angles;
+    std::vector<float> ranges;
 };
+
+
 
 class Spinner {
 public:
@@ -58,23 +79,20 @@ public:
     void callback(const LaserScanConstPtr &l1, const LaserScanConstPtr &l2);
     void LaserScanCleaner(const sensor_msgs::LaserScanConstPtr &src, myLaserStructure &dst);
     void findScansAssociations(myLaserStructure &scan1, myLaserStructure &scan2, float threshold);
-    void cleanAssociations(std::vector<pointAssoc*> &assoc);
     void calibrateLaserRanges(float k1, float k2, myLaserStructure &scan);
     void scanToPointcloud(myLaserStructure &scan, sensor_msgs::PointCloud & cloud);
-    float squaredErrorEstimation(sensor_msgs::PointCloud & cloud1, sensor_msgs::PointCloud & cloud2, std::vector<pointAssoc*> &assoc);
-    float weightedSquaredErrorEstimation(sensor_msgs::PointCloud & cloud1, sensor_msgs::PointCloud & cloud2, std::vector<pointAssoc*> &assoc);
+    float squaredErrorEstimation(sensor_msgs::PointCloud & cloud1, sensor_msgs::PointCloud & cloud2, mymap &fancyMap);
+    float weightedSquaredErrorEstimation(sensor_msgs::PointCloud & cloud1, sensor_msgs::PointCloud & cloud2,  mymap &fancyMap);
     float compute2DSquaredDistance(geometry_msgs::Point32 src, geometry_msgs::Point32 dst);
     void pointcloudToLaserscan(sensor_msgs::PointCloud & cloud,myLaserStructure &scan);
     void tranformPointcloud(sensor_msgs::PointCloud & cloud, tf::Transform t);
     void updateData();
-    void optimization(int iterations,std::vector<pointAssoc*> &assoc);
+    void optimization(int iterations,pointpairVec &assoc);
     void pointcloudToEigenMatrix(sensor_msgs::PointCloud &cloud, MatrixXd &m);
-    void pointcloudToEigenMatrixWithAssociations(sensor_msgs::PointCloud &cloud1,sensor_msgs::PointCloud &cloud2, MatrixXd &m1,MatrixXd &m2,std::vector<pointAssoc*> &assoc);
+    void pointcloudToEigenMatrixWithAssociations(MatrixXd &m1,MatrixXd &m2,pointpairVec &assoc);
     void pointAlignerLoop(Vector3d &x, MatrixXd &Z, int iterations, Vector3d &result);
-    Matrix3d v2t(Vector3d x);
     Vector2d computeError(int i,MatrixXd &X, MatrixXd &Z);
     MatrixXd computeJacobian(int i,Matrix3d X, MatrixXd Z);
-    Vector3d t2v( Matrix3d x);
     void putAssInTheBag();
     void spin();
 
@@ -86,8 +104,9 @@ public:
     float ty;
     float tz;
     float rz;
-    std::vector<pointAssoc*> assoc;
-    std::vector<pointAssoc*> globalAssoc;
+    //std::vector<pointAssoc*> assoc;
+    pointpairVec globalAssoc;
+    mymap fancyMap;
     tf::Transform t;
     LaserScanConstPtr l1;
     LaserScanConstPtr l2;

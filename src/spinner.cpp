@@ -1,12 +1,10 @@
 #include "spinner.h"
 #include <Eigen/LU>
 
-#define SCALING 30
-
 using namespace Eigen;
 
 Spinner::Spinner() : shutdown_required(false),thread(&Spinner::spin, *this){
-    this->i= new QImage(QSize(640,480),QImage::Format_RGB16);
+    //this->i= new QImage(QSize(640,480),QImage::Format_RGB16);
     d2=0;
     a2=0;
     tx=0;
@@ -26,14 +24,9 @@ Spinner::~Spinner() {
 
 void Spinner::callback(const LaserScanConstPtr &l1, const LaserScanConstPtr &l2){
     //calibration parameters from the UI
-
-
     this->l1=l1;
     this->l2=l2;
     updateData();
-
-
-
 }
 
 void Spinner::updateData()
@@ -61,20 +54,16 @@ void Spinner::updateData()
     tranformPointcloud(cloud2,tnew);
     pointcloudToLaserscan(cloud2,this->laser2);
 
-    findScansAssociations(this->laser1,this->laser2,M_PI/(90));
-
+    findScansAssociations(this->laser1,this->laser2,M_PI/(180));
     scanToPointcloud(this->laser1,this->cloud1);
     scanToPointcloud(this->laser2,this->cloud2);
-    float err =weightedSquaredErrorEstimation(cloud1,cloud2,assoc);
-    //std::cout<< "error is: "<<err<<std::endl;
+    float err =weightedSquaredErrorEstimation(cloud1,cloud2,fancyMap);
+    std::cout<< "error is: "<<err<<std::endl;
     laser->errorLabel->setText(QString::number(err));
-
-    laser->f->cloud1.points.clear();
-    laser->f->cloud2.points.clear();
 
     laser->f->cloud1=cloud1;
     laser->f->cloud2=cloud2;
-    laser->f->p=assoc;
+    laser->f->mapPointer=fancyMap;
 
 
 }
@@ -96,41 +85,42 @@ void Spinner::LaserScanCleaner(const sensor_msgs::LaserScanConstPtr &src, myLase
 }
 
 void Spinner::findScansAssociations(myLaserStructure &scan1, myLaserStructure &scan2, float threshold){
-    this->assoc.clear();
+    fancyMap.clear();
     for(unsigned int i = 0; i< scan1.angles.size();i++){
         for(unsigned int j = 0; j< scan2.angles.size();j++){
             if(     scan1.angles.at(i)>= (scan2.angles.at(j)-threshold) &&
                     scan1.angles.at(i)<= (scan2.angles.at(j)+threshold) &&
-                    abs(scan1.ranges.at(i)*scan1.ranges.at(i)-scan2.ranges.at(j)*scan2.ranges.at(j))<=1.0f){
-                assoc.push_back(new pointAssoc(i,j,
-                                                   abs(scan1.ranges.at(i)*scan1.ranges.at(i)-scan2.ranges.at(j)*scan2.ranges.at(j))
-                                               ));
+                    abs(scan1.ranges.at(i)*scan1.ranges.at(i)-scan2.ranges.at(j)*scan2.ranges.at(j))<=0.20f){
+                float d=abs(scan1.ranges.at(i)*scan1.ranges.at(i)-scan2.ranges.at(j)*scan2.ranges.at(j));
+                //pointAssoc* tmpP= new pointAssoc(i,j,d);
+                //assoc.push_back(tmpP);
+                mapData m;
+                m.first=j;
+                m.second=d;
+                fancyMap.insert(std::make_pair(i,m));
             }
+
         }
     }
-    cleanAssociations(this->assoc);
+
+
+
 }
 
-void Spinner::cleanAssociations(std::vector<pointAssoc*> &assoc)
-{
-    pointAssoc* p;
-    float d;
-    for(unsigned int i=0;i<assoc.size();i++){
-        d=9999;
-        for(unsigned int j=0;j<assoc.size();j++){
-            p=assoc.at(j);
-            if(p->d<d) d=p->d;
-            else assoc.erase (assoc.begin()+j);
-        }
-    }
-}
 
 void Spinner::putAssInTheBag()
 {
-    for(unsigned int i=0;i<assoc.size();i++){
-        this->globalAssoc.push_back(assoc.at(i));
+    mymap::iterator i = fancyMap.begin();
+    while(i!=fancyMap.end()){
+
+        std::pair<int,mapData> data=(*i);
+        pointpair p;
+        p.first=this->cloud1.points.at(data.first);
+        p.second=this->cloud2.points.at((data.second).first);
+        globalAssoc.push_back(p);
+        i++;
     }
-    std::cout<<"GLOBAL ASS SIZE: "<<this->globalAssoc.size()<<std::endl;
+    //std::cout<<"GLOBAL ASS SIZE: "<<this->globalAssoc.size()<<std::endl;
 }
 
 void Spinner::calibrateLaserRanges(float k1, float k2, myLaserStructure &scan){
@@ -152,20 +142,24 @@ void Spinner::scanToPointcloud(myLaserStructure &scan, sensor_msgs::PointCloud &
     }
 }
 
-float Spinner::squaredErrorEstimation(sensor_msgs::PointCloud & cloud1, sensor_msgs::PointCloud & cloud2, std::vector<pointAssoc*> &assoc){
+float Spinner::squaredErrorEstimation(sensor_msgs::PointCloud & cloud1, sensor_msgs::PointCloud & cloud2,  mymap &fancyMap){
     float error=0.0f;
-    pointAssoc* a;
-    for(unsigned int i=0;i<assoc.size();i++)
-    {
-        a=assoc.at(i);
-        error+=compute2DSquaredDistance(cloud1.points.at(a->i),cloud2.points.at(a->j));
+    mymap::iterator i = fancyMap.begin();
+    while(i!=fancyMap.end()){
+
+        std::pair<int,mapData> data=(*i);
+        pointpair p;
+        geometry_msgs::Point32 p1=this->cloud1.points.at(data.first);
+        geometry_msgs::Point32 p2=this->cloud2.points.at((data.second).first);
+        error+=compute2DSquaredDistance(p1,p2);
+        i++;
     }
     return error;
 }
 
-float Spinner::weightedSquaredErrorEstimation(sensor_msgs::PointCloud & cloud1, sensor_msgs::PointCloud & cloud2, std::vector<pointAssoc*> &assoc){
-    float error=squaredErrorEstimation(cloud1,cloud2,assoc);
-    error=error/assoc.size();
+float Spinner::weightedSquaredErrorEstimation(sensor_msgs::PointCloud & cloud1, sensor_msgs::PointCloud & cloud2,  mymap &fancyMap){
+    float error=squaredErrorEstimation(cloud1,cloud2,fancyMap);
+    error=error/fancyMap.size();
     return error;
 }
 
@@ -205,13 +199,13 @@ void Spinner::tranformPointcloud(sensor_msgs::PointCloud & cloud, tf::Transform 
     }
 }
 
-void Spinner::optimization(int iterations,std::vector<pointAssoc*> &assoc){
+void Spinner::optimization(int iterations,pointpairVec &assoc){
 
     int size=assoc.size();
     MatrixXd P(size,3);
     MatrixXd Pt(size,3);
     MatrixXd Z(4,size);
-    pointcloudToEigenMatrixWithAssociations(this->cloud1,this->cloud2,P,Pt,assoc);
+    pointcloudToEigenMatrixWithAssociations(P,Pt,assoc);
 
     //UGLY
     //--------------------------------------
@@ -231,10 +225,10 @@ void Spinner::optimization(int iterations,std::vector<pointAssoc*> &assoc){
 
     //DEBUG
     //--------------------------------------
-//        IOFormat OctaveFmt( StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
-//        std::cout << (P).format(OctaveFmt) <<std::endl;
-//        std::cout << (Pt).format(OctaveFmt) <<std::endl;
-//        std::cout << (Z).format(OctaveFmt) <<std::endl;
+    //        IOFormat OctaveFmt( StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
+    //        std::cout << (P).format(OctaveFmt) <<std::endl;
+    //        std::cout << (Pt).format(OctaveFmt) <<std::endl;
+    //        std::cout << (Z).format(OctaveFmt) <<std::endl;
     //--------------------------------------
 
     Vector3d x(3);
@@ -258,7 +252,7 @@ void Spinner::pointAlignerLoop( Vector3d &x,  MatrixXd &Z, int iterations,  Vect
 
     for(int i = 0; i < iterations; i++){
 
-        X=v2t(x);
+        X=Malcom::geometry::v2t(x);
         for(int j=0;j<Z.cols();j++){
 
             Vector2d e=computeError(j,X,Z);
@@ -278,14 +272,15 @@ void Spinner::pointAlignerLoop( Vector3d &x,  MatrixXd &Z, int iterations,  Vect
     Vector3d dx;
     LDLT<MatrixXd> ldlt(-H);
     dx=ldlt.solve(b); // using a LDLT factorizationldlt;
-    MatrixXd dX=v2t(dx);
+    MatrixXd dX=Malcom::geometry::v2t(dx);
+
     Vector3d res;
     res.setZero();
     std::cout <<"dx:"<<dx<<std::endl<<std::endl;
     std::cout <<"X: "<<X<<std::endl<<std::endl;
     //MatrixXd transform=dX*X;
     std::cout <<res<<std::endl<<std::endl;
-    res=t2v(dX*X);
+    res=Malcom::geometry::t2v(dX*X);
     std::cout <<res<<std::endl<<std::endl;
     laser->tx=res(0);
     laser->ty=res(1);
@@ -340,26 +335,6 @@ MatrixXd Spinner::computeJacobian(int i,Matrix3d X, MatrixXd Z)
 }
 
 
-Matrix3d Spinner::v2t( Vector3d x)
-{
-    Matrix3d A(3,3);
-    double c=cos(x(2));
-    double s=sin(x(2));
-    A<<c,-s,x(0),s,c,x(1),0,0,1;
-    IOFormat OctaveFmt( StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
-    std::cout << A.format(OctaveFmt)<<std::endl;
-    return A;
-}
-
-Vector3d Spinner::t2v( Matrix3d x)
-{
-    Vector3d v;
-    v.setZero();
-    v(0)=x(0,2);
-    v(1)=x(1,2);
-    v(2)=atan2(x(1,0),x(0,0));
-    return v;
-}
 
 void Spinner::pointcloudToEigenMatrix(sensor_msgs::PointCloud &cloud, MatrixXd &m)
 {
@@ -373,20 +348,20 @@ void Spinner::pointcloudToEigenMatrix(sensor_msgs::PointCloud &cloud, MatrixXd &
     }
 }
 
-void Spinner::pointcloudToEigenMatrixWithAssociations(sensor_msgs::PointCloud &cloud1,sensor_msgs::PointCloud &cloud2,  MatrixXd &m1, MatrixXd &m2,std::vector<pointAssoc*> &assoc)
+void Spinner::pointcloudToEigenMatrixWithAssociations(MatrixXd &m1, MatrixXd &m2,pointpairVec &assoc)
 {
     m1.setOnes();
     m2.setOnes();
 
-    pointAssoc* a;
+    pointpair a;
     geometry_msgs::Point32 p;
     for(unsigned int i=0;i<assoc.size();i++)
     {
         a=assoc.at(i);
-        p=cloud1.points.at(a->i);
+        p=a.first;
         m1(i,0)=p.x;
         m1(i,1)=p.y;
-        p=cloud2.points.at(a->j);
+        p=a.second;
         m2(i,0)=p.x;
         m2(i,1)=p.y;
     }
