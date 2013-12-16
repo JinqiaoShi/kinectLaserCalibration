@@ -1,5 +1,6 @@
 #include "spinner.h"
 #include <Eigen/LU>
+#include <fstream>
 
 using namespace Eigen;
 
@@ -12,6 +13,7 @@ Spinner::Spinner() : shutdown_required(false),thread(&Spinner::spin, *this){
     tz=0;
     rz=0;
     t.setIdentity();
+    //solver = new leastSquareSolver(Vector3d(0,0,0),1);
 }
 
 Spinner::~Spinner() {
@@ -31,6 +33,7 @@ void Spinner::callback(const LaserScanConstPtr &l1, const LaserScanConstPtr &l2)
 
 void Spinner::updateData()
 {
+    //cout <<"CALIB VALUES: " <<d2 << " "<<a2;
     LaserScanCleaner(l1,this->laser1); //
     LaserScanCleaner(l2,this->laser2); // needed to remove crappy kinect noise
     d2=laser->d2;
@@ -43,8 +46,6 @@ void Spinner::updateData()
     scanToPointcloud(this->laser1,this->cloud1);
     scanToPointcloud(this->laser2,this->cloud2);
 
-
-
     tf::Transform tnew;
     tnew.setIdentity();
     tf::Quaternion q(tf::Vector3(0,0,1),rz);
@@ -54,11 +55,13 @@ void Spinner::updateData()
     tranformPointcloud(cloud2,tnew);
     pointcloudToLaserscan(cloud2,this->laser2);
 
-    findScansAssociations(this->laser1,this->laser2,M_PI/(180));
+    findScansAssociations(this->laser1,this->laser2,M_PI/(100));
+    dumpLaserData();
+
     scanToPointcloud(this->laser1,this->cloud1);
     scanToPointcloud(this->laser2,this->cloud2);
     float err =weightedSquaredErrorEstimation(cloud1,cloud2,fancyMap);
-    std::cout<< "error is: "<<err<<std::endl;
+    //std::cout<< "error is: "<<err<<std::endl;
     laser->errorLabel->setText(QString::number(err));
 
     laser->f->cloud1=cloud1;
@@ -82,6 +85,7 @@ void Spinner::LaserScanCleaner(const sensor_msgs::LaserScanConstPtr &src, myLase
             dst.ranges.push_back(src->ranges.at(i));
         }
     }
+
 }
 
 void Spinner::findScansAssociations(myLaserStructure &scan1, myLaserStructure &scan2, float threshold){
@@ -90,10 +94,8 @@ void Spinner::findScansAssociations(myLaserStructure &scan1, myLaserStructure &s
         for(unsigned int j = 0; j< scan2.angles.size();j++){
             if(     scan1.angles.at(i)>= (scan2.angles.at(j)-threshold) &&
                     scan1.angles.at(i)<= (scan2.angles.at(j)+threshold) &&
-                    abs(scan1.ranges.at(i)*scan1.ranges.at(i)-scan2.ranges.at(j)*scan2.ranges.at(j))<=0.20f){
+                    abs(scan1.ranges.at(i)*scan1.ranges.at(i)-scan2.ranges.at(j)*scan2.ranges.at(j))<=0.50f){
                 float d=abs(scan1.ranges.at(i)*scan1.ranges.at(i)-scan2.ranges.at(j)*scan2.ranges.at(j));
-                //pointAssoc* tmpP= new pointAssoc(i,j,d);
-                //assoc.push_back(tmpP);
                 mapData m;
                 m.first=j;
                 m.second=d;
@@ -103,8 +105,42 @@ void Spinner::findScansAssociations(myLaserStructure &scan1, myLaserStructure &s
         }
     }
 
+    //Global Associations to laser calib
+    mymap::iterator i = fancyMap.begin();
+    AllAssoc.clear();;
+    while(i!=fancyMap.end()){
+
+        std::pair<int,mapData> data=(*i);
+        pointpair p;
+        p.first=this->cloud1.points.at(data.first);
+        p.second=this->cloud2.points.at((data.second).first);
+        AllAssoc.push_back(p);
+        i++;
+    }
 
 
+}
+
+void Spinner::dumpLaserData(){
+    ofstream myfile;
+    mymap::iterator i = fancyMap.begin();
+    myfile.open ("laserDump.m",std::ofstream::out);
+
+    while(i!=fancyMap.end()){
+
+        std::pair<int,mapData> data=(*i);
+        int pi;
+        int pj;
+        pi=data.first;
+        pj=data.second.first;
+
+        myfile  << (float)laser1.ranges.at(pi) << " "
+                << (float)laser1.angles.at(pi) << " "
+                << (float)laser2.ranges.at(pj) << " "
+                << (float)laser2.angles.at(pj) << endl;
+        i++;
+    }
+    myfile.close();
 }
 
 
@@ -125,7 +161,8 @@ void Spinner::putAssInTheBag()
 
 void Spinner::calibrateLaserRanges(float k1, float k2, myLaserStructure &scan){
     for(unsigned int i=0;i < scan.ranges.size(); i++){
-        scan.ranges.at(i)=scan.ranges.at(i)+scan.ranges.at(i)*scan.ranges.at(i)*k1+scan.ranges.at(i)*scan.ranges.at(i)*k1*scan.angles.at(i)*scan.angles.at(i)*k2;
+        scan.ranges.at(i)=  scan.ranges.at(i)+scan.ranges.at(i)*scan.ranges.at(i)*k1+
+                            scan.ranges.at(i)*scan.ranges.at(i)*k1*scan.angles.at(i)*scan.angles.at(i)*k2;
 
     }
 }
@@ -198,142 +235,6 @@ void Spinner::tranformPointcloud(sensor_msgs::PointCloud & cloud, tf::Transform 
         cloud.points.at(i)=p;
     }
 }
-
-void Spinner::optimization(int iterations,pointpairVec &assoc){
-
-    int size=assoc.size();
-    MatrixXd P(size,3);
-    MatrixXd Pt(size,3);
-    MatrixXd Z(4,size);
-    pointcloudToEigenMatrixWithAssociations(P,Pt,assoc);
-
-    //UGLY
-    //--------------------------------------
-    for(int i=0;i<size;i++)
-    {
-        for(int j=0;j<2;j++)
-        {
-            Z(j,i)=P(i,j);
-        }
-        for(int j=2;j<4;j++)
-        {
-            Z(j,i)=Pt(i,j-2);
-        }
-    }
-
-    //--------------------------------------
-
-    //DEBUG
-    //--------------------------------------
-    //        IOFormat OctaveFmt( StreamPrecision, 0, ", ", ";\n", "", "", "[", "]");
-    //        std::cout << (P).format(OctaveFmt) <<std::endl;
-    //        std::cout << (Pt).format(OctaveFmt) <<std::endl;
-    //        std::cout << (Z).format(OctaveFmt) <<std::endl;
-    //--------------------------------------
-
-    Vector3d x(3);
-    x<<laser->tx,laser->ty,laser->rz;
-    Vector3d result(3);
-    result=x;
-    std::cout<<"----> Current trasnformation is "<<x<<std::endl;
-    pointAlignerLoop(x,Z,iterations,result);
-}
-
-void Spinner::pointAlignerLoop( Vector3d &x,  MatrixXd &Z, int iterations,  Vector3d &result)
-{
-    result=x;
-    MatrixXd H(3,3);
-    H.setZero();
-
-    MatrixXd b(3,1);
-    b.setZero();
-
-    MatrixXd X(3,3);
-
-    for(int i = 0; i < iterations; i++){
-
-        X=Malcom::geometry::v2t(x);
-        for(int j=0;j<Z.cols();j++){
-
-            Vector2d e=computeError(j,X,Z);
-            MatrixXd J=computeJacobian(j,X,Z);
-            //std::cout<<"<><><>"<<j<<"<><><>"<<std::endl<<std::endl;
-            //std::cout<<J<<std::endl<<std::endl;
-            //std::cout<<J.transpose()*J<<std::endl;
-            //std::cout<<"<><><><><><><>"<<std::endl<<std::endl;
-            H+=J.transpose()*J;
-            b+=J.transpose()*e;
-        }
-    }
-    MatrixXd id(3,3);
-    id.setIdentity();
-    id*100;
-    H+=id;
-    Vector3d dx;
-    LDLT<MatrixXd> ldlt(-H);
-    dx=ldlt.solve(b); // using a LDLT factorizationldlt;
-    MatrixXd dX=Malcom::geometry::v2t(dx);
-
-    Vector3d res;
-    res.setZero();
-    std::cout <<"dx:"<<dx<<std::endl<<std::endl;
-    std::cout <<"X: "<<X<<std::endl<<std::endl;
-    //MatrixXd transform=dX*X;
-    std::cout <<res<<std::endl<<std::endl;
-    res=Malcom::geometry::t2v(dX*X);
-    std::cout <<res<<std::endl<<std::endl;
-    laser->tx=res(0);
-    laser->ty=res(1);
-    laser->rz=res(2);
-    this->laser->setJacobianParameters(res(0),res(1),res(2));
-    updateData();
-}
-
-Vector2d Spinner::computeError(int i,MatrixXd &X, MatrixXd &Z)
-{
-    Vector3d pi(3);
-    pi.setOnes();
-
-    Vector3d pj(3);
-    pj.setOnes();
-
-    pi.head(2)=Z.block<2,1>(0,i);
-    pj.head(2)=Z.block<2,1>(2,i);
-    Vector3d e;
-    e=(pi-X*pj);
-    Vector2d er;
-    er<<e(0),e(1);
-    return er;
-
-
-}
-
-MatrixXd Spinner::computeJacobian(int i,Matrix3d X, MatrixXd Z)
-{
-    MatrixXd J(2,3);
-    J.setZero();
-    J(0,0)=-1;
-    J(1,1)=-1;
-    //float c=X(0,0);
-    //float s=X(0,1);
-    Matrix2d Rprime;
-    Rprime<<0,-1,1,0;
-    //std::cout<<" RPRIME -> "<<Rprime<<std::endl;
-    Vector2d pj;
-    pj=Z.block<2,1>(2,i);
-    //std::cout << "================"<<std::endl;
-    //std::cout << X.block<2,2>(0,0)<<std::endl;
-    //std::cout << "----------------"<<std::endl;
-    //std::cout << pj<<std::endl;
-    //std::cout << "----------------"<<std::endl;
-    //std::cout << X.block<1,2>(2,0)<<std::endl;
-    //std::cout << "================"<<std::endl;
-
-    pj=X.block<2,2>(0,0)*pj+X.block<2,1>(0,2);
-    J.block<2,1>(0,2)=-Rprime*pj;
-    return J;
-}
-
 
 
 void Spinner::pointcloudToEigenMatrix(sensor_msgs::PointCloud &cloud, MatrixXd &m)

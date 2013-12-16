@@ -3,20 +3,31 @@
 #include <Eigen/Core>
 #include <Eigen/Cholesky>
 #include "spinner.h"
+#include "geohelper.h"
 
-class pointAssoc;
-
-namespace Malcom {
-    class solver;
-}
-
-class Malcom::solver
-{
+template <class Solver,class InputData,class OutputData>
+class genericSolver{
 public:
-    virtual void getCorrespondaces(std::vector<class pointAssoc*> &pA)=0;
-    virtual void getInitialTransform(Eigen::Vector3d t)=0;
-    virtual void optimize(int i)=0;
+    void setInitialTransform(OutputData t){
+        _algorithm.setInitialGuess(t);
+    }
+    void setIterationsNum(int i){
+        _algorithm.setIterationNum(i);
+    }
 
+    OutputData getOutputData(){return _output;}
+
+    void optimize(InputData i){
+        _output = _algorithm.optimize(i);
+    }
+private:
+    InputData _input;
+    OutputData _guess;
+    OutputData _output;
+    Solver _algorithm;
 };
+
+
+
 
 #endif

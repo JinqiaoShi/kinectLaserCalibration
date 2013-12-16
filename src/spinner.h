@@ -25,6 +25,9 @@
 #include "geohelper.h"
 #include "leastSquaresSolver.h"
 #include "fancyMap.h"
+#include "solver.h"
+#include "leastSquaresSolver.h"
+#include "leastSquaresSolverCalib.h"
 
 using namespace sensor_msgs;
 using namespace message_filters;
@@ -32,37 +35,8 @@ using namespace Eigen;
 using namespace std;
 class Laser;
 
-typedef std::pair<geometry_msgs::Point32,geometry_msgs::Point32 > pointpair;
-typedef std::vector<pointpair > pointpairVec;
 
-//class pointAssoc
-//{
-//public:
-//    pointAssoc(unsigned int a,unsigned int b,float c){
-//        i=a;
-//        j=b;
-//        d=c;
-//    }
-
-//    unsigned int i;
-//    unsigned int j;
-//    float d;
-
-//    bool operator==(const pointAssoc& b) const {
-//        std::cout<<"egual done"<<std::endl;
-//        return (this->i==b.i && this->j==b.j);
-//    }
-
-//    bool operator<(const pointAssoc& b) const {
-//        std::cout<<"check done"<<std::endl;
-//        return this->d<b.d;
-//    }
-
-//};
-
-
-class myLaserStructure
-{
+class myLaserStructure{
 public:
     std::vector<float> angles;
     std::vector<float> ranges;
@@ -87,14 +61,16 @@ public:
     void pointcloudToLaserscan(sensor_msgs::PointCloud & cloud,myLaserStructure &scan);
     void tranformPointcloud(sensor_msgs::PointCloud & cloud, tf::Transform t);
     void updateData();
-    void optimization(int iterations,pointpairVec &assoc);
+    //void optimization(int iterations,pointpairVec &assoc);
     void pointcloudToEigenMatrix(sensor_msgs::PointCloud &cloud, MatrixXd &m);
     void pointcloudToEigenMatrixWithAssociations(MatrixXd &m1,MatrixXd &m2,pointpairVec &assoc);
-    void pointAlignerLoop(Vector3d &x, MatrixXd &Z, int iterations, Vector3d &result);
-    Vector2d computeError(int i,MatrixXd &X, MatrixXd &Z);
-    MatrixXd computeJacobian(int i,Matrix3d X, MatrixXd Z);
+    //void pointAlignerLoop(Vector3d &x, MatrixXd &Z, int iterations, Vector3d &result);
+    //Vector2d computeError(int i,MatrixXd &X, MatrixXd &Z);
+    //MatrixXd computeJacobian(int i,Matrix3d X, MatrixXd Z);
     void putAssInTheBag();
     void spin();
+    //TEST
+    void dumpLaserData();
 
     Laser* laser;
     QImage* i;
@@ -104,12 +80,14 @@ public:
     float ty;
     float tz;
     float rz;
-    //std::vector<pointAssoc*> assoc;
     pointpairVec globalAssoc;
+    pointpairVec AllAssoc;
     mymap fancyMap;
     tf::Transform t;
     LaserScanConstPtr l1;
     LaserScanConstPtr l2;
+    genericSolver<leastSquareSolver,pointpairVec,Vector3d> solver;
+    genericSolver<leastSquareSolverCalib,pointpairVec,Vector2d> solver2;
 private:
     bool shutdown_required;
     ecl::Thread thread;

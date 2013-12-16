@@ -40,7 +40,7 @@ void fancyViewer::drawAssociations(sensor_msgs::PointCloud &sourceCloud, sensor_
         glColor3f(r,g,b);
         std::pair<int,mapData> pair=(*i);
         mapData k=pair.second;
-        if(pair.first<sourceCloud.points.size() && k.first<destinationCloud.points.size()){ //debug
+        if((unsigned int)pair.first<(unsigned int)sourceCloud.points.size() && (unsigned int)k.first<(unsigned int)destinationCloud.points.size()){ //debug
         vertex=sourceCloud.points.at(pair.first);
         glVertex3f(vertex.x,vertex.y,vertex.z);
         vertex=destinationCloud.points.at(k.first);

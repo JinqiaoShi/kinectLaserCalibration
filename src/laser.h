@@ -47,7 +47,6 @@ public:
     fancyViewer* f;
     void setJacobianParameters(double x,double y, double rz);
 protected slots:
-    void clickme();
 
 private slots:
 
@@ -59,12 +58,10 @@ private slots:
     void on_doubleSpinBox_3_valueChanged(const QString &arg1);
     void on_doubleSpinBox_5_valueChanged(const QString &arg1);
     void on_doubleSpinBox_4_valueChanged(const QString &arg1);
-
     void on_pushButton_4_clicked();
-
     void on_pushButton_2_clicked();
-
     void on_pushButton_clicked();
+    void on_T_Optimizer_clicked();
 
 private:
     Ui::Laser *ui;
@@ -74,37 +71,6 @@ private:
 };
 
 
-//class Worker : public QObject
-//{
-//    Q_OBJECT
-//private:
-//    int fd;
-//public slots:
-//    void doWork() {
-//        this->i= new QImage(QSize(640,480),QImage::Format_RGB888);
-//        while(1){
-//            qsrand(QTime::currentTime().msec());
-//            this->i->fill(qRgb(0,0,0));
-//            for(int j=0;j<640;j++)
-//            {
-//                for(int k=0;k<480;k++)
-//                {
-//                    if(qrand()%5)
-//                    {
-//                        this->i->setPixel(j,k,qRgb(255,255,255));
-//                    }
-//                }
-//            }
-
-//            //QMetaObject::invokeMethod(laser,"setImage",Qt::QueuedConnection,Q_ARG(QImage,*i));
-//            QMetaObject::invokeMethod(laser,"fastSet",Qt::QueuedConnection);
-//            usleep(10000);
-//        }
-//    }
-//public:
-//    QImage *i;
-//    Laser* laser;
-//};
 
 
 #endif
